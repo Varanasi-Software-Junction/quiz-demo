@@ -1,0 +1,771 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Counting Sort — 5 Row Visualizer (Single-digit)</title>
+<style>
+  :root{
+    --bg:#f3f8ff;
+    --card:#ffffff;
+    --muted:#59607a;
+    --gap:10px;
+    --highlight:#fff59d; /* subtle yellow selection fallback */
+  }
+  body{
+    margin:0;
+    font-family:Inter, "Poppins", system-ui, -apple-system;
+    background:linear-gradient(180deg,var(--bg),#e6f3ff);
+    color:var(--muted);
+    display:flex;
+    justify-content:center;
+    padding:28px;
+  }
+
+  .wrap{
+    width:100%;
+    max-width:1024px;
+    background:var(--card);
+    border-radius:12px;
+    padding:18px;
+    box-shadow:0 12px 30px rgba(13,71,161,0.06);
+  }
+
+  h1{ margin:0 0 10px 0; color:#0d47a1; font-size:20px; }
+  .controls{ display:flex; gap:8px; align-items:center; margin:12px 0; flex-wrap:wrap;}
+  input[type="text"]{ padding:10px 12px; border-radius:8px; border:1px solid #d9eaff; min-width:280px; font-size:15px;}
+  button{ padding:10px 14px; border-radius:8px; border:none; background:#0d47a1; color:white; cursor:pointer; font-weight:600;}
+  button:disabled{ opacity:.6; cursor:default; }
+
+  .explanation{
+    background:linear-gradient(180deg, rgba(13,71,161,0.03), rgba(13,71,161,0.02));
+    border-radius:10px;
+    padding:12px;
+    margin-bottom:12px;
+    color:#243046;
+  }
+  .explanation h2{ margin:0 0 6px 0; font-size:15px; color:#0d47a1; }
+  .explanation p{ margin:0; font-size:13.6px; line-height:1.45; color:var(--muted); }
+  .explanation p span.word { white-space:pre-wrap; }
+  .explanation p span.highlight {
+    background: var(--highlight);
+    color: #1f2937;
+    border-radius: 2px;
+  }
+
+  .rows{ display:flex; flex-direction:column; gap:18px; margin-top:8px;}
+  .row-block{ display:flex; flex-direction:column; gap:8px; }
+  .row-title{ font-size:13px; color:var(--muted); display:flex; gap:8px; align-items:center;}
+  .row{ display:flex; gap:var(--gap); min-height:72px; align-items:end; padding:10px; border-radius:10px; background:linear-gradient(180deg, rgba(13,71,161,0.015), rgba(13,71,161,0.01)); flex-wrap:wrap; }
+
+  /* generic cell */
+  .cell{
+    width:56px; height:56px; border-radius:10px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:18px;
+    box-shadow:0 8px 20px rgba(13,71,161,0.04); color:white;
+  }
+
+  .label{ width:auto; padding:8px 12px; border-radius:10px; background:transparent; color:var(--muted); font-weight:700; box-shadow:none; }
+
+  .freq-wrap{ display:flex; flex-direction:column; align-items:center; gap:6px; width:56px; }
+  .bar{ width:56px; height:10px; background:#eef6ff; border-radius:8px; overflow:hidden; }
+  .bar-inner{ height:100%; width:0%; transition:width 300ms ease; background:rgba(0,0,0,0.08); }
+
+  .placeholder{ width:56px; height:56px; border-radius:10px; border:2px dashed rgba(13,71,161,0.08); display:flex; align-items:center; justify-content:center; color:rgba(13,71,161,0.25); font-weight:700; }
+
+  /* moving clone */
+  .moving{
+    position:fixed; z-index:9999; pointer-events:none; transition: transform 620ms cubic-bezier(.2,.9,.2,1), opacity 200ms linear; will-change:transform;
+    display:flex; align-items:center; justify-content:center;
+  }
+
+  #status{ margin-top:12px; color:var(--muted); min-height:22px; }
+  #result{ margin-top:6px; font-weight:700; color:#2e7d32; }
+
+  @media (max-width:640px){
+    .cell, .placeholder, .freq-wrap{ width:44px; height:44px; }
+    .bar{ width:44px; height:8px; }
+  }
+</style>
+</head>
+<body>
+   
+<img  class="crx_avatar" src="https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEglwaii2_xBr47JtUxESk3iekPLl1TSI5B6RuwqNOs_8zk9iGlLqw3d_WprAhKKp3m9F1eO4XBh_JfU_jj6Ad759bHWsqU0evz1SdsG_XBJPc7nXmkbGHO2glvshLTd0fOaKlIGfEVHlEeltJcg2Azc70rVoswRtvH-QiohpHrAuuPEE1uwA9CToBM9foE/s16000/me.jpg" alt="Champak's implementation of Bubble Sort"/>
+  
+  <div class="wrap">
+    <h1>Counting Sort — 5 Row Visualizer (Single digit 0–9)</h1>
+
+    <!-- Explanation block uses spans for words so we can highlight/select each word while speaking -->
+    <div class="explanation" id="explanationBlock"  aria-live="polite">
+      <h2>What is Counting Sort?</h2>
+      <p id="explanationText">
+  Counting Sort is a non-comparison-based integer sorting algorithm used mainly as a sub-method in Radix Sort. 
+Instead of comparing elements, it counts how many times each value appears in the array and uses that information 
+to determine their final positions.
+
+The key idea is simple:
+If you know how many numbers in the array are smaller than or equal to a given number, 
+you can directly place that number in its correct position.
+For example, if the number x = 5 and there are 4 numbers ≤ 5, then 5 will be placed at position 4.
+
+The algorithm works in three main steps:
+1. Count how many times each number occurs.
+2. Compute cumulative counts to know how many numbers are smaller or equal to each value.
+3. Place each element into its correct position using those cumulative counts.
+
+Counting Sort runs in approximately 3N time — 
+N for counting, N for cumulative computation, and N for placing elements — 
+making its overall time complexity O(n + k), where n is the number of elements and k is the range of input values (0–9 for single-digit numbers).
+
+--------------------------------------------
+Example 1: 4 Numbers
+Input: [4, 2, 1, 3]
+Step 1: Count → 1:1, 2:1, 3:1, 4:1  
+Step 2: Cumulative → 1:1, 2:2, 3:3, 4:4  
+Step 3: Place → [1, 2, 3, 4]
+Output: [1, 2, 3, 4]
+
+--------------------------------------------
+Example 2: 2 Numbers
+Input: [7, 2]
+Step 1: Count → 2:1, 7:1  
+Step 2: Cumulative → 2:1, 7:2  
+Step 3: Place → [2, 7]
+Output: [2, 7]
+
+--------------------------------------------
+Example 3: 11 Numbers
+Input: [4, 2, 9, 1, 3, 1, 0, 8, 5, 9, 2]
+Step 1: Count → 0:1, 1:2, 2:2, 3:1, 4:1, 5:1, 8:1, 9:2  
+Step 2: Cumulative → 0:1, 1:3, 2:5, 3:6, 4:7, 5:8, 8:9, 9:11  
+Step 3: Place → [0, 1, 1, 2, 2, 3, 4, 5, 8, 9, 9]
+Output: [0, 1, 1, 2, 2, 3, 4, 5, 8, 9, 9]
+--------------------------------------------
+
+These examples show how Counting Sort arranges data without comparisons, 
+making it especially efficient for small integer ranges and useful as a sub-step in Radix Sort.
+
+      </p>
+    </div>
+
+    <div class="controls">
+      <input id="inputText" placeholder="Enter single-digit numbers, e.g. 4,2,2,8,3,3,1" />
+      <button id="startBtn">Start</button>
+      <button id="resetBtn" style="background:#eaf2ff; color:#0d47a1; font-weight:700;">Reset</button>
+
+      <!-- Read explanation button -->
+      <button id="readBtn" style="background:#0d47a1; margin-left:6px;">Read explanation</button>
+
+      <div style="margin-left:auto; font-size:13px; color:#55607a;">Numbers allowed: 0–9 only</div>
+    </div>
+
+    <div class="rows">
+      <div class="row-block">
+        <div class="row-title">1) Input (labels)</div>
+        <div id="row0" class="row" aria-label="input labels"></div>
+      </div>
+
+      <div class="row-block">
+        <div class="row-title">2) Input elements (movable boxes)</div>
+        <div id="row1" class="row" aria-label="input elements"></div>
+      </div>
+
+      <div class="row-block">
+        <div class="row-title">3) Frequencies</div>
+        <div id="row2" class="row" aria-label="frequencies"></div>
+      </div>
+
+      <div class="row-block">
+        <div class="row-title">4) Cumulative frequencies</div>
+        <div id="row3" class="row" aria-label="cumulative"></div>
+      </div>
+
+      <div class="row-block">
+        <div class="row-title">5) Sorted array (boxes move here)</div>
+        <div id="row4" class="row" aria-label="sorted"></div>
+      </div>
+    </div>
+
+    <div id="status"></div>
+    <div id="result"></div>
+  </div>
+
+<script>
+/* --- Explanation highlighting + TTS logic --- */
+
+/* Grab original explanation text */
+const explanationPara = document.getElementById('explanationText');
+const explanationRaw = explanationPara.textContent.trim();
+
+/* Utility: split into tokens (words + punctuation + whitespace preserved)
+   We will create spans for each token that is not purely whitespace,
+   and keep exact original spacing by adding a span for spaces/newlines as well.
+*/
+function tokenizeForSpans(text){
+  // Regex explanation:
+  // capture sequences of whitespace OR sequences of non-whitespace characters
+  // This keeps punctuation attached to words, which is good for natural reading.
+  const tokens = text.match(/\s+|[^\s]+/g) || [];
+  return tokens;
+}
+
+/* Create spans for each token and replace paragraph content */
+const tokens = tokenizeForSpans(explanationRaw);
+explanationPara.innerHTML = ''; // clear
+tokens.forEach((tk, idx) => {
+  const span = document.createElement('span');
+  // Mark whitespace tokens differently to avoid selecting invisible spans unnecessarily
+  if(/\s+/.test(tk)){
+    span.className = 'word space';
+    span.textContent = tk;
+  } else {
+    span.className = 'word';
+    span.textContent = tk;
+    span.dataset.index = idx;
+    span.setAttribute('aria-hidden','false');
+  }
+  explanationPara.appendChild(span);
+});
+
+/* Helpers to manage highlight & selection */
+function clearHighlights(){
+  const prev = explanationPara.querySelectorAll('span.highlight');
+  prev.forEach(s => s.classList.remove('highlight'));
+  // clear selection
+  const sel = window.getSelection();
+  sel.removeAllRanges();
+}
+function highlightTokenByIndex(i){
+  clearHighlights();
+  const spans = explanationPara.querySelectorAll('span.word');
+  // find first span with matching data-index
+  for(const s of spans){
+    if(s.dataset.index && Number(s.dataset.index) === i){
+      s.classList.add('highlight');
+      // create selection on this span's text
+      const range = document.createRange();
+      range.selectNodeContents(s);
+      const sel = window.getSelection();
+      sel.removeAllRanges();
+      sel.addRange(range);
+      // ensure it's visible
+      s.scrollIntoView({behavior:'smooth', block:'nearest', inline:'nearest'});
+      break;
+    }
+  }
+}
+
+/* Clears selection & highlight when stopping */
+function stopHighlighting(){
+  clearHighlights();
+}
+
+/* TTS control state */
+let speakingUtterance = null;
+let fallbackWordIndex = 0;
+let fallbackActive = false;
+let perWordUtterance = null;
+
+/* Try to use onboundary (high precision). Fallback to per-word speaking. */
+function speakWithHighlight(text){
+  // stop any ongoing
+  stopReading();
+
+  if(!('speechSynthesis' in window)){
+    alert('Speech synthesis not supported in this browser.');
+    return;
+  }
+
+  // If browser supports SpeechSynthesisUtterance.onboundary, use it.
+  const testUt = new SpeechSynthesisUtterance('');
+  const supportsBoundary = ('onboundary' in testUt);
+
+  if(supportsBoundary){
+    // Create a single utterance, listen to boundary events (char-level)
+    const u = new SpeechSynthesisUtterance(text);
+    speakingUtterance = u;
+
+    // Precompute mapping from character positions to token indices
+    // Build an array mapping each token's start and end char index in the joined text
+    const tokenSpans = Array.from(explanationPara.querySelectorAll('span.word'));
+    const mapping = []; // {start,end,index}
+    let cursor = 0;
+    tokenSpans.forEach((s) => {
+      const content = s.textContent;
+      const start = cursor;
+      const end = cursor + content.length; // end exclusive
+      const idx = s.dataset.index ? Number(s.dataset.index) : null;
+      mapping.push({ start, end, index: idx, node: s });
+      cursor = end;
+    });
+
+    // onboundary gives us character offsets within the utterance text
+    u.onboundary = (evt) => {
+      // some browsers send word boundaries with evt.name === 'word' or charIndex
+      const charIndex = evt.charIndex != null ? evt.charIndex : evt.charOffset;
+      if(charIndex == null) return;
+      // find mapping entry that contains this charIndex
+      for(const m of mapping){
+        if(m.index == null) continue; // skip space tokens
+        if(charIndex >= m.start && charIndex < m.end){
+          // highlight that token index
+          highlightTokenByIndex(m.index);
+          break;
+        }
+      }
+    };
+    u.onend = () => {
+      speakingUtterance = null;
+      stopHighlighting();
+      updateReadBtn(false);
+    };
+    u.onerror = () => {
+      speakingUtterance = null;
+      stopHighlighting();
+      updateReadBtn(false);
+    };
+
+    // speak
+    speechSynthesis.cancel();
+    speechSynthesis.speak(u);
+    updateReadBtn(true);
+  } else {
+    // Fallback: speak word-by-word sequentially using small utterances.
+    fallbackActive = true;
+    const wordSpans = Array.from(explanationPara.querySelectorAll('span.word')).filter(s => s.dataset.index !== undefined);
+    fallbackWordIndex = 0;
+
+    const speakNext = () => {
+      if(!fallbackActive) return;
+      if(fallbackWordIndex >= wordSpans.length){
+        fallbackActive = false;
+        updateReadBtn(false);
+        stopHighlighting();
+        return;
+      }
+      const s = wordSpans[fallbackWordIndex];
+      const w = s.textContent;
+      // highlight/select this token
+      highlightTokenByIndex(Number(s.dataset.index));
+      perWordUtterance = new SpeechSynthesisUtterance(w);
+      perWordUtterance.onend = () => {
+        perWordUtterance = null;
+        fallbackWordIndex++;
+        // small pause between words
+        setTimeout(() => {
+          speakNext();
+        }, 40);
+      };
+      perWordUtterance.onerror = () => {
+        perWordUtterance = null;
+        fallbackActive = false;
+        updateReadBtn(false);
+        stopHighlighting();
+      };
+      speechSynthesis.cancel();
+      speechSynthesis.speak(perWordUtterance);
+    };
+
+    updateReadBtn(true);
+    speakNext();
+  }
+}
+
+/* Stop any reading */
+function stopReading(){
+  // cancel synth
+  if('speechSynthesis' in window){
+    speechSynthesis.cancel();
+  }
+  speakingUtterance = null;
+  fallbackActive = false;
+  fallbackWordIndex = 0;
+  if(perWordUtterance){
+    perWordUtterance = null;
+  }
+  stopHighlighting();
+  updateReadBtn(false);
+}
+
+/* Read button wiring */
+const readBtn = document.getElementById('readBtn');
+readBtn.addEventListener('click', () => {
+  // if currently speaking, stop
+  if((speakingUtterance !== null) || fallbackActive){
+    stopReading();
+    return;
+  }
+  // else start speaking explanation
+  speakWithHighlight(explanationRaw);
+});
+
+/* Ensure read button state updates if user stops speech using browser controls */
+window.addEventListener('blur', () => {
+  // do nothing; keeping speech active is okay. But we keep listeners to ends above.
+});
+window.addEventListener('beforeunload', stopReading);
+
+/* Helper to update read button appearance */
+function updateReadBtn(isReading){
+  if(isReading){
+    readBtn.textContent = 'Stop';
+    readBtn.style.background = '#d32f2f';
+  } else {
+    readBtn.textContent = 'Read explanation';
+    readBtn.style.background = '#0d47a1';
+  }
+}
+
+/* --- THE REST OF YOUR VISUALIZER CODE (unchanged) --- */
+
+/* Color palette for digits 0..9 (nice distinct hues) */
+const palette = [
+  '#4caf50', //0 - green
+  '#2196f3', //1 - blue
+  '#ff9800', //2 - orange
+  '#9c27b0', //3 - purple
+  '#f44336', //4 - red
+  '#00bfa5', //5 - teal
+  '#607d8b', //6 - blue-grey
+  '#3f51b5', //7 - indigo
+  '#795548', //8 - brown
+  '#ff5722'  //9 - deep-orange
+];
+
+/* Choose text color (white or near-black) based on bg luminance */
+function textColorFor(hex){
+  const c = hex.replace('#','');
+  const r = parseInt(c.substring(0,2),16);
+  const g = parseInt(c.substring(2,4),16);
+  const b = parseInt(c.substring(4,6),16);
+  const lum = 0.2126*r + 0.7152*g + 0.0722*b;
+  return lum > 150 ? '#1f2937' : '#ffffff';
+}
+
+/* DOM refs for visualizer */
+const inputText = document.getElementById('inputText');
+const startBtn = document.getElementById('startBtn');
+const resetBtn = document.getElementById('resetBtn');
+const row0 = document.getElementById('row0'); // labels
+const row1 = document.getElementById('row1'); // movable
+const row2 = document.getElementById('row2'); // freq
+const row3 = document.getElementById('row3'); // cumulative
+const row4 = document.getElementById('row4'); // sorted
+const status = document.getElementById('status');
+const result = document.getElementById('result');
+
+let original = [];
+let freq = [];
+let cumulative = [];
+
+/* Validate input: only single-digit integers 0-9, comma separated */
+function parseInput(str){
+  const parts = str.split(',').map(s => s.trim()).filter(s => s.length>0);
+  const arr = [];
+  for(const p of parts){
+    if(!/^[0-9]$/.test(p)){
+      return { error: `Invalid token "${p}". Only single digits 0–9 allowed.` };
+    }
+    arr.push(parseInt(p,10));
+  }
+  return { arr };
+}
+
+/* Utility to clear rows and stop any speaking/highlights */
+function clearRows(){
+  row0.innerHTML = '';
+  row1.innerHTML = '';
+  row2.innerHTML = '';
+  row3.innerHTML = '';
+  row4.innerHTML = '';
+  status.textContent = '';
+  result.textContent = '';
+  stopReading(); // ensure reading stops when resetting
+}
+
+/* Create a label (row0) */
+function makeLabel(text){
+  const d = document.createElement('div');
+  d.className = 'label';
+  d.textContent = text;
+  return d;
+}
+
+/* Create a value cell with color based on digit */
+function makeValCell(val){
+  const d = document.createElement('div');
+  d.className = 'cell';
+  d.textContent = val;
+  const bg = palette[val];
+  d.style.background = bg;
+  d.style.color = textColorFor(bg);
+  d.dataset.val = val;
+  return d;
+}
+
+/* Create a freq cell (value label + bar + count) */
+function makeFreqCell(digit, count=0){
+  const wrapper = document.createElement('div');
+  wrapper.className = 'freq-wrap';
+  wrapper.dataset.digit = digit;
+
+  const lbl = document.createElement('div');
+  lbl.className = 'label';
+  lbl.textContent = digit;
+  lbl.style.background = 'transparent';
+  lbl.style.color = '#55607a';
+  lbl.style.fontWeight = '700';
+  lbl.style.boxShadow = 'none';
+  lbl.style.width = '56px';
+  lbl.style.textAlign = 'center';
+
+  const bar = document.createElement('div');
+  bar.className = 'bar';
+  const inner = document.createElement('div');
+  inner.className = 'bar-inner';
+  inner.style.background = palette[digit];
+  inner.style.width = '0%';
+  bar.appendChild(inner);
+
+  const cnt = document.createElement('div');
+  cnt.className = 'label';
+  cnt.style.width = '56px';
+  cnt.style.textAlign = 'center';
+  cnt.style.background = 'transparent';
+  cnt.style.color = '#0d47a1';
+  cnt.style.fontWeight = '800';
+  cnt.textContent = count;
+
+  wrapper.appendChild(lbl);
+  wrapper.appendChild(bar);
+  wrapper.appendChild(cnt);
+  return wrapper;
+}
+
+function makePlaceholder(){
+  const d = document.createElement('div');
+  d.className = 'placeholder';
+  return d;
+}
+
+/* Delay helper */
+function wait(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+/* Reusable speak function used in visualizer steps (short phrases) */
+function speakShort(txt){
+  if(!txt) return;
+  // cancel any long-running explanation utterance to avoid overlap
+  if('speechSynthesis' in window) speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(txt);
+  u.rate = 1.0;
+  u.pitch = 1.0;
+  speechSynthesis.speak(u);
+}
+
+/* update freq & cumulative UI */
+function updateFreqUI(){
+  for(let d=0; d<=9; d++){
+    const node = row2.querySelector(`[data-digit="${d}"]`);
+    if(!node) continue;
+    const inner = node.querySelector('.bar-inner');
+    const countEl = node.querySelectorAll('.label')[1];
+    countEl.textContent = freq[d] || 0;
+    const maxCount = Math.max(1, ...freq);
+    const pct = Math.round(((freq[d]||0) / maxCount) * 100);
+    inner.style.width = pct + '%';
+  }
+  for(let d=0; d<=9; d++){
+    const node = row3.querySelector(`[data-digit="${d}"]`);
+    if(!node) continue;
+    const countEl = node.querySelectorAll('.label')[1];
+    countEl.textContent = cumulative[d] || 0;
+    const inner = node.querySelector('.bar-inner');
+    const maxCum = Math.max(1, ...cumulative);
+    const pct = Math.round(((cumulative[d]||0) / maxCum) * 100);
+    inner.style.width = pct + '%';
+  }
+}
+
+/* Main counting-sort animation sequence */
+async function runCountingSort(arr){
+  original = arr.slice();
+  freq = new Array(10).fill(0);
+  cumulative = new Array(10).fill(0);
+
+  clearRows();
+
+  // row0: labels (input array labels)
+  original.forEach(v => row0.appendChild(makeLabel(v)));
+
+  // row1: input movable cells
+  original.forEach(v => row1.appendChild(makeValCell(v)));
+
+  // row2: frequencies placeholders for digits 0..9
+  for(let d=0; d<=9; d++){
+    row2.appendChild(makeFreqCell(d, 0));
+  }
+
+  // row3: cumulative placeholders
+  for(let d=0; d<=9; d++){
+    row3.appendChild(makeFreqCell(d, 0));
+  }
+
+  // row4: sorted placeholders (same length as original)
+  for(let i=0;i<original.length;i++){
+    row4.appendChild(makePlaceholder());
+  }
+
+  await wait(550);
+  status.textContent = 'Counting occurrences...';
+  speakShort('Counting occurrences of each element.');
+
+  // Count occurrences — animate input boxes briefly and update freq
+  const inputs = Array.from(row1.children);
+  for(let i=0;i<inputs.length;i++){
+    const el = inputs[i];
+    el.style.transform = 'translateY(-8px)';
+    el.style.boxShadow = '0 20px 50px rgba(13,71,161,0.12)';
+    await wait(220);
+
+    const v = parseInt(el.dataset.val,10);
+    freq[v] = (freq[v]||0) + 1;
+    updateFreqUI();
+
+    speakShort(`Element ${v} counted. Frequency of ${v} is ${freq[v]}.`);
+    await wait(1200);
+
+    el.style.transform = '';
+    el.style.boxShadow = '';
+    await wait(120);
+  }
+
+  await wait(600);
+  status.textContent = 'Calculating cumulative frequencies...';
+  speakShort('Calculating cumulative frequencies.');
+  await wait(600);
+
+  cumulative[0] = freq[0];
+  for(let d=1; d<=9; d++){
+    cumulative[d] = cumulative[d-1] + freq[d];
+
+    // visual highlight + update
+    const r2node = row2.querySelector(`[data-digit="${d}"]`);
+    const r3node = row3.querySelector(`[data-digit="${d}"]`);
+    if(r2node) { r2node.style.transform = 'translateY(-6px)'; r2node.style.boxShadow = '0 12px 30px rgba(13,71,161,0.06)'; }
+    updateFreqUI();
+    await wait(240);
+    if(r2node) { r2node.style.transform = ''; r2node.style.boxShadow = ''; }
+    if(r3node) { r3node.querySelectorAll('.label')[1].textContent = cumulative[d]; r3node.querySelector('.bar-inner').style.background = palette[d]; }
+    await wait(120);
+  }
+
+  await wait(300);
+  status.textContent = 'Placing elements into sorted positions...';
+  speakShort('Placing elements into sorted positions.');
+
+  const outputSlots = Array.from(row4.children);
+  for(let i=original.length-1; i>=0; i--){
+    const val = original[i];
+    cumulative[val] = cumulative[val] - 1;
+    const targetIndex = cumulative[val];
+
+    updateFreqUI();
+
+    const sourceEl = row1.children[i];
+    const targetSlot = outputSlots[targetIndex];
+
+    const freqNode = row2.querySelector(`[data-digit="${val}"]`);
+    const cumNode = row3.querySelector(`[data-digit="${val}"]`);
+    if(freqNode) { freqNode.style.transform = 'translateY(-6px)'; freqNode.style.boxShadow = '0 12px 30px rgba(13,71,161,0.06)'; }
+    if(cumNode) { cumNode.style.transform = 'translateY(-6px)'; cumNode.style.boxShadow = '0 12px 30px rgba(13,71,161,0.06)'; }
+
+    status.textContent = `Placing element ${val} into slot ${targetIndex + 1}`;
+    speakShort(`Placing element ${val} into position ${targetIndex + 1}.`);
+    await wait(400);
+
+    // animate move (re-use earlier animateMove if present)
+    await animateCloneMove(sourceEl, targetSlot);
+
+    // fill target slot visually
+    targetSlot.className = 'cell';
+    targetSlot.textContent = val;
+    const bg = palette[val];
+    targetSlot.style.background = bg;
+    targetSlot.style.color = textColorFor(bg);
+
+    if(freqNode) { freqNode.style.transform = ''; freqNode.style.boxShadow = ''; }
+    if(cumNode) { cumNode.style.transform = ''; cumNode.style.boxShadow = ''; }
+
+    await wait(120);
+  }
+
+  status.textContent = 'Counting sort complete.';
+  speakShort('Counting sort complete.');
+  await wait(500);
+  result.textContent = 'Sorted: ' + Array.from(row4.children).map(x => x.textContent.trim() || '').join(', ');
+
+  // re-enable controls
+  startBtn.disabled = false;
+  inputText.disabled = false;
+}
+
+/* animate clone move helper used above (distinct name from earlier animateMove to avoid confusion) */
+function animateCloneMove(sourceEl, targetEl, duration=620){
+  return new Promise(resolve => {
+    const s = sourceEl.getBoundingClientRect();
+    const t = targetEl.getBoundingClientRect();
+
+    const clone = sourceEl.cloneNode(true);
+    clone.classList.add('moving');
+    clone.style.left = s.left + 'px';
+    clone.style.top = s.top + 'px';
+    clone.style.width = s.width + 'px';
+    clone.style.height = s.height + 'px';
+    clone.style.borderRadius = getComputedStyle(sourceEl).borderRadius;
+    clone.style.boxShadow = '0 18px 44px rgba(13,71,161,0.12)';
+    document.body.appendChild(clone);
+
+    // force reflow
+    void clone.offsetWidth;
+
+    const dx = t.left + (t.width - s.width)/2 - s.left;
+    const dy = t.top + (t.height - s.height)/2 - s.top;
+    clone.style.transform = `translate(${dx}px, ${dy}px)`;
+
+    setTimeout(()=> {
+      clone.style.opacity = '0';
+      setTimeout(()=> { clone.remove(); resolve(); }, 200);
+    }, duration);
+  });
+}
+
+/* Controls */
+startBtn.addEventListener('click', async () => {
+  const parsed = parseInput(inputText.value || '');
+  if(parsed.error){ alert(parsed.error); return; }
+  if(parsed.arr.length === 0){ alert('Enter at least one digit (0–9).'); return; }
+  // disable UI during run
+  startBtn.disabled = true;
+  inputText.disabled = true;
+  resetBtn.disabled = true;
+  await runCountingSort(parsed.arr);
+  resetBtn.disabled = false;
+});
+
+resetBtn.addEventListener('click', () => {
+  clearRows();
+  inputText.value = '';
+  startBtn.disabled = false;
+  inputText.disabled = false;
+  resetBtn.disabled = false;
+  status.textContent = '';
+  result.textContent = '';
+});
+
+/* Prefill a sample */
+inputText.value = '1,6,0,1,1,9,7,0';
+clearRows();
+
+</script>
+   
+</body>
+</html>
